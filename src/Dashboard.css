@@ -1,331 +1,36 @@
 .dashboard {
-  min-height: 100vh;
   background: linear-gradient(135deg, #1a1f3a 0%, #2d1b69 50%, #6b3a3a 100%);
+  min-height: 100vh;
   padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  color: #fff;
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
 .header {
-  background: #242d47;
-  padding: 30px;
-  border-radius: 8px;
   margin-bottom: 30px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .header h1 {
+  margin: 0 0 20px 0;
+  font-size: 32px;
   color: #fff;
-  margin: 0 0 15px 0;
-  font-size: 28px;
 }
 
 .header p {
-  color: #999;
-  margin: 8px 0;
-}
-
-.header .ready {
-  color: #4ade80;
-  font-weight: bold;
-}
-
-.header .connecting {
-  color: #facc15;
-  font-weight: bold;
-}
-
-.header .count {
-  color: #06b6d4;
-  font-weight: bold;
-}
-
-.opportunities-card {
-  background: #242d47;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.card-header h2 {
-  color: #fff;
-  margin: 0;
-  font-size: 20px;
-}
-
-.btn-add {
-  background: #06b6d4;
-  color: #1a1f3a;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
+  margin: 5px 0;
   font-size: 14px;
-  transition: opacity 0.2s;
+  color: #ccc;
 }
 
-.btn-add:hover {
-  opacity: 0.9;
-}
-
-.empty {
-  text-align: center;
-  color: #999;
-  padding: 40px 20px;
-}
-
-.opp-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.opp-item {
-  background: #1a1f3a;
-  padding: 16px;
-  border-radius: 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: box-shadow 0.2s;
-}
-
-.opp-item:hover {
-  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
-}
-
-.opp-name {
-  color: #fff;
-  font-weight: bold;
-  margin: 0 0 8px 0;
-}
-
-.opp-product {
-  color: #999;
-  font-size: 12px;
-  margin: 0;
-}
-
-.opp-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.opp-value {
-  color: #06b6d4;
-  font-weight: bold;
-  margin: 0;
-  min-width: 100px;
-  text-align: right;
-}
-
-.btn-edit,
-.btn-delete {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: bold;
-  padding: 4px 8px;
-  transition: color 0.2s;
-}
-
-.btn-edit {
-  color: #06b6d4;
-}
-
-.btn-edit:hover {
-  color: #22d3ee;
-}
-
-.btn-delete {
-  color: #ef4444;
-}
-
-.btn-delete:hover {
-  color: #fca5a5;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal {
-  background: #242d47;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #1a1f3a;
-}
-
-.modal-header h2 {
-  color: #fff;
-  margin: 0;
-  font-size: 18px;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 24px;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.btn-close:hover {
-  color: #fff;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  color: #999;
-  font-size: 12px;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  font-weight: bold;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  padding: 10px;
-  background: #1a1f3a;
-  border: none;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 14px;
-  font-family: inherit;
+* {
   box-sizing: border-box;
 }
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px #06b6d4;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 10px;
-  padding: 20px;
-  border-top: 1px solid #1a1f3a;
-}
-
-.btn-primary,
-.btn-secondary {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 14px;
-  transition: opacity 0.2s;
-}
-
-.btn-primary {
-  background: #06b6d4;
-  color: #1a1f3a;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-secondary {
-  background: #3b4559;
-  color: #fff;
-}
-
-.btn-secondary:hover {
-  opacity: 0.9;
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .dashboard {
-    padding: 12px;
-  }
-
-  .header {
-    padding: 20px;
-  }
-
-  .header h1 {
-    font-size: 20px;
-  }
-
-  .opportunities-card {
-    padding: 20px;
-  }
-
-  .card-header {
-    flex-direction: column;
-    gap: 15px;
-    align-items: flex-start;
-  }
-
-  .btn-add {
-    width: 100%;
-  }
-
-  .opp-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .opp-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .opp-value {
-    text-align: left;
-  }
+input, select, textarea, button {
+  font-family: inherit;
 }
