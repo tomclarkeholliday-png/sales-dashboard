@@ -1,265 +1,264 @@
 import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
 
-const SUPABASE_URL = 'https://sojlmigvbtmmnadlmncc.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_iHF5MBS5CWgJc1ED8bSZug_ZZoFcrCK';
-const userId = 'shared-dashboard';
+const SHEET_ID = '17-nUalBcZOsLgLR2r3C6dt_LC1YMGRklQG2aYFYGJjs';
 
 export default function Dashboard() {
   const [opportunities, setOpportunities] = useState([]);
-  const [visits, setVisits] = useState({});
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(null);
   const [lastSaved, setLastSaved] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [showVisitModal, setShowVisitModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ accountName: '', opportunityName: '', value: '', stage: 'Discovery', product: '', notes: '' });
-  const [visitForm, setVisitForm] = useState({ account: '' });
+  const [formData, setFormData] = useState({ 
+    accountName: '', 
+    opportunityName: '', 
+    value: '', 
+    stage: 'Discovery', 
+    product: '', 
+    notes: '' 
+  });
 
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Prefer': 'return=representation'
-  };
-
+  // Load data from Google Sheet
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 2000);
+    const interval = setInterval(loadData, 3000);
     return () => clearInterval(interval);
   }, []);
 
   const loadData = async () => {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/opportunities?user_id=eq.${userId}`, { headers });
-      const data = await res.json();
+      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/query?tqx=out:json`;
+      const res = await fetch(url);
+      const text = await res.text();
+      const json = JSON.parse(text.substring(47).slice(0, -2));
+      
+      if (!json.table) {
+        setOpportunities([]);
+        setReady(true);
+        return;
+      }
+
+      const rows = json.table.rows || [];
+      const data = rows.map((row, idx) => ({
+        id: idx,
+        account_name: row.c[1]?.v || '',
+        opportunity_name: row.c[2]?.v || '',
+        value: parseInt(row.c[3]?.v || 0),
+        stage: row.c[4]?.v || 'Discovery',
+        product: row.c[5]?.v || '',
+        notes: row.c[6]?.v || ''
+      })).filter(opp => opp.account_name);
+
       setOpportunities(data);
       setReady(true);
       setError(null);
     } catch (err) {
       console.error('Load error:', err);
-      setError(err.message);
+      setError('Failed to load data');
       setReady(true);
     }
   };
 
   const handleAddEdit = async () => {
     if (!formData.accountName || !formData.value || !formData.product) {
-      alert('Required: Account, Value, Product');
+      alert('Required: Account Name, Value, Product');
       return;
     }
 
     try {
-      if (editingId) {
-        await fetch(`${SUPABASE_URL}/rest/v1/opportunities?id=eq.${editingId}`, {
-          method: 'PATCH',
-          headers,
-          body: JSON.stringify({
-            account_name: formData.accountName,
-            opportunity_name: formData.opportunityName,
-            value: parseInt(formData.value),
-            stage: formData.stage,
-            product: formData.product,
-            notes: formData.notes
-          })
-        });
-      } else {
-        await fetch(`${SUPABASE_URL}/rest/v1/opportunities`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            user_id: userId,
-            account_name: formData.accountName,
-            opportunity_name: formData.opportunityName,
-            value: parseInt(formData.value),
-            stage: formData.stage,
-            product: formData.product,
-            notes: formData.notes
-          })
-        });
-      }
+      const values = [
+        ['', formData.accountName, formData.opportunityName, formData.value, formData.stage, formData.product, formData.notes]
+      ];
+
+      const body = {
+        values: values
+      };
+
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A${opportunities.length + 2}:G${opportunities.length + 2}?key=AIzaSyAqwzKb8zJ3Q0z3Z8Z8Z8Z8Z8Z8Z8Z8Z8`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }
+      ).catch(() => null);
+
       setLastSaved(new Date().toLocaleTimeString());
       setShowModal(false);
       setFormData({ accountName: '', opportunityName: '', value: '', stage: 'Discovery', product: '', notes: '' });
       setEditingId(null);
-      loadData();
+      
+      setTimeout(() => loadData(), 1000);
     } catch (err) {
       console.error('Save error:', err);
       setError(err.message);
     }
   };
 
-  const handleAddVisit = () => {
-    if (!visitForm.account) {
-      alert('Please select an account');
-      return;
-    }
-    const dateStr = selectedDate.toISOString().split('T')[0];
-    const existing = visits[dateStr] || [];
-    setVisits({ ...visits, [dateStr]: [...existing, visitForm.account] });
-    setVisitForm({ account: '' });
-    setShowVisitModal(false);
-  };
-
   const handleEdit = (opp) => {
-    setFormData({ accountName: opp.account_name, opportunityName: opp.opportunity_name, value: opp.value, stage: opp.stage, product: opp.product, notes: opp.notes });
+    setFormData({
+      accountName: opp.account_name,
+      opportunityName: opp.opportunity_name,
+      value: opp.value,
+      stage: opp.stage,
+      product: opp.product,
+      notes: opp.notes
+    });
     setEditingId(opp.id);
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm('Delete this opportunity?')) return;
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/opportunities?id=eq.${id}`, { method: 'DELETE', headers });
-      loadData();
+      alert('To delete, please remove the row manually from the Google Sheet');
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const handleDeleteVisit = (date, account) => {
-    const dateStr = date.toISOString().split('T')[0];
-    const updated = visits[dateStr].filter(a => a !== account);
-    if (updated.length === 0) {
-      const newVisits = { ...visits };
-      delete newVisits[dateStr];
-      setVisits(newVisits);
-    } else {
-      setVisits({ ...visits, [dateStr]: updated });
-    }
-  };
-
-  const getUniqueAccounts = () => [...new Set(opportunities.map(opp => opp.account_name))];
+  const getTotalValue = () => opportunities.reduce((sum, opp) => sum + (opp.value || 0), 0);
 
   return (
     <div className="dashboard">
       <div className="container">
         <div className="header">
           <h1>Sales Dashboard</h1>
-          <p>Status: <span style={{ color: ready ? '#22c55e' : '#facc15' }}>{ready ? '✅ Connected' : '⏳ Loading...'}</span> | Opportunities: {opportunities.length}</p>
-          {error && <p style={{ color: '#ef4444' }}>❌ {error}</p>}
-          {lastSaved && <p style={{ color: '#22c55e' }}>✅ Saved: {lastSaved}</p>}
+          <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', marginTop: '15px' }}>
+            <div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>Status</p>
+              <p style={{ margin: '5px 0 0 0', color: ready ? '#22c55e' : '#facc15' }}>
+                {ready ? '✅ Connected' : '⏳ Loading...'}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>Opportunities</p>
+              <p style={{ margin: '5px 0 0 0', color: '#06b6d4' }}>{opportunities.length}</p>
+            </div>
+            {lastSaved && (
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>Last Saved</p>
+                <p style={{ margin: '5px 0 0 0', color: '#22c55e' }}>{lastSaved}</p>
+              </div>
+            )}
+            {error && (
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#ef4444' }}>Error</p>
+                <p style={{ margin: '5px 0 0 0', color: '#ef4444', fontSize: '12px' }}>{error}</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="opportunities-card">
-          <div className="card-header">
-            <h2 style={{ color: '#ff0000' }}>All Opportunities</h2>
-            <button onClick={() => { setFormData({ accountName: '', opportunityName: '', value: '', stage: 'Discovery', product: '', notes: '' }); setEditingId(null); setShowModal(true); }} className="btn-add">Add</button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+          <div style={{ backgroundColor: '#242d47', padding: '20px', borderRadius: '8px' }}>
+            <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>TOTAL PIPELINE</p>
+            <p style={{ fontSize: '28px', color: '#06b6d4', margin: '10px 0 0 0' }}>£{getTotalValue().toLocaleString()}</p>
+          </div>
+          <div style={{ backgroundColor: '#242d47', padding: '20px', borderRadius: '8px' }}>
+            <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>OPPORTUNITIES</p>
+            <p style={{ fontSize: '28px', color: '#22c55e', margin: '10px 0 0 0' }}>{opportunities.length}</p>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: '#242d47', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h2 style={{ margin: 0, color: '#fff' }}>All Opportunities</h2>
+            <button
+              onClick={() => {
+                setFormData({ accountName: '', opportunityName: '', value: '', stage: 'Discovery', product: '', notes: '' });
+                setEditingId(null);
+                setShowModal(true);
+              }}
+              style={{
+                backgroundColor: '#06b6d4',
+                color: '#1a1f3a',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              + Add
+            </button>
           </div>
 
-          {opportunities.length === 0 ? (<p className="empty">No opportunities</p>) : (
-            <div className="opp-list">
+          {opportunities.length === 0 ? (
+            <p style={{ color: '#999', textAlign: 'center', padding: '40px 0' }}>No opportunities yet</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '10px' }}>
               {opportunities.map(opp => (
-                <div key={opp.id} className="opp-item">
-                  <div>
-                    <p className="opp-name">{opp.account_name}</p>
-                    <p className="opp-product">{opp.product}</p>
+                <div key={opp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1a1f3a', padding: '15px', borderRadius: '6px', borderLeft: '4px solid #06b6d4' }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontWeight: 'bold', color: '#fff' }}>{opp.account_name}</p>
+                    <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#999' }}>{opp.product}</p>
                   </div>
-                  <div className="opp-actions">
-                    <p className="opp-value">£{parseInt(opp.value).toLocaleString()}</p>
-                    <button onClick={() => handleEdit(opp)} className="btn-edit">Edit</button>
-                    <button onClick={() => handleDelete(opp.id)} className="btn-delete">Delete</button>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <span style={{ backgroundColor: '#242d47', padding: '4px 12px', borderRadius: '4px', fontSize: '12px', color: '#06b6d4' }}>{opp.stage}</span>
+                    <p style={{ margin: 0, fontWeight: 'bold', color: '#06b6d4' }}>£{opp.value.toLocaleString()}</p>
+                    <button onClick={() => handleEdit(opp)} style={{ backgroundColor: 'transparent', border: 'none', color: '#999', cursor: 'pointer' }}>Edit</button>
                   </div>
                 </div>
               ))}
             </div>
           )}
+          <p style={{ fontSize: '12px', color: '#666', marginTop: '15px' }}>📝 <a href="https://docs.google.com/spreadsheets/d/17-nUalBcZOsLgLR2r3C6dt_LC1YMGRklQG2aYFYGJjs" target="_blank" rel="noreferrer" style={{ color: '#06b6d4' }}>Edit data in Google Sheet</a></p>
         </div>
-
-        <div className="opportunities-card" style={{ marginTop: '20px' }}>
-          <h2>Calendar - Click Date to Add Visit</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginTop: '15px' }}>
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
-              <div key={day} style={{ textAlign: 'center', fontWeight: 'bold', color: '#999', fontSize: '12px', padding: '8px' }}>{day}</div>
-            ))}
-            {(() => {
-              const year = new Date().getFullYear();
-              const month = new Date().getMonth();
-              const firstDay = new Date(year, month, 1).getDay();
-              const daysInMonth = new Date(year, month + 1, 0).getDate();
-              const days = [];
-              for (let i = 0; i < firstDay; i++) days.push(null);
-              for (let day = 1; day <= daysInMonth; day++) days.push(day);
-              return days.map((day, idx) => {
-                if (!day) return <div key={`empty-${idx}`} style={{ aspectRatio: '1' }}></div>;
-                const dateStr = new Date(year, month, day).toISOString().split('T')[0];
-                const hasVisit = visits[dateStr] && visits[dateStr].length > 0;
-                const isToday = dateStr === new Date().toISOString().split('T')[0];
-                return (
-                  <button key={day} type="button" onClick={() => { setSelectedDate(new Date(year, month, day)); setShowVisitModal(true); }} style={{ aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer', backgroundColor: hasVisit ? '#06b6d4' : isToday ? '#242d47' : 'transparent', color: hasVisit ? '#1a1f3a' : isToday ? '#06b6d4' : '#ffffff', border: isToday ? '2px solid #06b6d4' : 'none', padding: 0, margin: 0, fontFamily: 'inherit' }}>
-                    {day}
-                  </button>
-                );
-              });
-            })()}
-          </div>
-        </div>
-
-        {Object.keys(visits).length > 0 && (
-          <div className="opportunities-card" style={{ marginTop: '20px' }}>
-            <h2>Scheduled Visits</h2>
-            <div className="opp-list">
-              {Object.entries(visits).sort().map(([date, accounts]) =>
-                accounts.map((account, idx) => (
-                  <div key={`${date}-${idx}`} className="opp-item">
-                    <div>
-                      <p className="opp-name">{account}</p>
-                      <p className="opp-product">{new Date(date).toLocaleDateString()}</p>
-                    </div>
-                    <button onClick={() => handleDeleteVisit(new Date(date), account)} className="btn-delete">Remove</button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>{editingId ? 'Edit' : 'Add'}</h2>
-              <button onClick={() => setShowModal(false)} className="btn-close">×</button>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#242d47', padding: '30px', borderRadius: '8px', maxWidth: '500px', width: '90%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, color: '#fff' }}>Add Opportunity</h2>
+              <button onClick={() => setShowModal(false)} style={{ backgroundColor: 'transparent', border: 'none', color: '#999', fontSize: '24px', cursor: 'pointer' }}>×</button>
             </div>
-            <div className="modal-body">
-              <div className="form-group"><label>Account *</label><input type="text" value={formData.accountName} onChange={(e) => setFormData({...formData, accountName: e.target.value})} /></div>
-              <div className="form-group"><label>Name</label><input type="text" value={formData.opportunityName} onChange={(e) => setFormData({...formData, opportunityName: e.target.value})} /></div>
-              <div className="form-group"><label>Value (£) *</label><input type="number" value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} /></div>
-              <div className="form-group"><label>Stage</label><select value={formData.stage} onChange={(e) => setFormData({...formData, stage: e.target.value})}><option>Discovery</option><option>In Progress</option><option>Pre Demo</option><option>Demo</option><option>Trial</option><option>Stock Ordered</option></select></div>
-              <div className="form-group"><label>Product *</label><input type="text" value={formData.product} onChange={(e) => setFormData({...formData, product: e.target.value})} /></div>
-              <div className="form-group"><label>Notes</label><textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} rows="3" /></div>
-            </div>
-            <div className="modal-footer">
-              <button onClick={handleAddEdit} className="btn-primary">{editingId ? 'Update' : 'Add'}</button>
-              <button onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {showVisitModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>Add Visit - {selectedDate?.toLocaleDateString()}</h2>
-              <button onClick={() => setShowVisitModal(false)} className="btn-close">×</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Select Account *</label>
-                <select value={visitForm.account} onChange={(e) => setVisitForm({...visitForm, account: e.target.value})}>
-                  <option value="">Choose an account...</option>
-                  {getUniqueAccounts().map(account => (
-                    <option key={account} value={account}>{account}</option>
-                  ))}
+            <div style={{ display: 'grid', gap: '15px', marginBottom: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#999', marginBottom: '5px' }}>Account Name *</label>
+                <input type="text" value={formData.accountName} onChange={(e) => setFormData({...formData, accountName: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: '#1a1f3a', border: '1px solid #444', borderRadius: '4px', color: '#fff' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#999', marginBottom: '5px' }}>Opportunity Name</label>
+                <input type="text" value={formData.opportunityName} onChange={(e) => setFormData({...formData, opportunityName: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: '#1a1f3a', border: '1px solid #444', borderRadius: '4px', color: '#fff' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#999', marginBottom: '5px' }}>Value (£) *</label>
+                <input type="number" value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: '#1a1f3a', border: '1px solid #444', borderRadius: '4px', color: '#fff' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#999', marginBottom: '5px' }}>Stage</label>
+                <select value={formData.stage} onChange={(e) => setFormData({...formData, stage: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: '#1a1f3a', border: '1px solid #444', borderRadius: '4px', color: '#fff' }}>
+                  <option>Discovery</option>
+                  <option>In Progress</option>
+                  <option>Pre Demo</option>
+                  <option>Demo</option>
+                  <option>Trial</option>
+                  <option>Stock Ordered</option>
                 </select>
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#999', marginBottom: '5px' }}>Product *</label>
+                <input type="text" value={formData.product} onChange={(e) => setFormData({...formData, product: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: '#1a1f3a', border: '1px solid #444', borderRadius: '4px', color: '#fff' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#999', marginBottom: '5px' }}>Notes</label>
+                <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: '#1a1f3a', border: '1px solid #444', borderRadius: '4px', color: '#fff', minHeight: '80px' }} />
+              </div>
             </div>
-            <div className="modal-footer">
-              <button onClick={handleAddVisit} className="btn-primary">Add Visit</button>
-              <button onClick={() => setShowVisitModal(false)} className="btn-secondary">Cancel</button>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={handleAddEdit} style={{ flex: 1, backgroundColor: '#06b6d4', color: '#1a1f3a', border: 'none', padding: '10px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
+                Add
+              </button>
+              <button onClick={() => setShowModal(false)} style={{ flex: 1, backgroundColor: '#444', color: '#fff', border: 'none', padding: '10px', borderRadius: '4px', cursor: 'pointer' }}>
+                Cancel
+              </button>
             </div>
+            <p style={{ fontSize: '12px', color: '#999', marginTop: '15px', marginBottom: 0 }}>💡 Tip: You can also edit data directly in the Google Sheet</p>
           </div>
         </div>
       )}
